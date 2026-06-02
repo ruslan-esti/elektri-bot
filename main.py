@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 import requests
 import os
+from datetime import datetime
 
 TOKEN = os.getenv("BOT_TOKEN")
 
@@ -19,7 +20,6 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         data = response.json()
-
         prices = data["data"]["ee"]
 
         if not prices:
@@ -28,10 +28,7 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        from datetime import datetime
-
         now = int(datetime.now().timestamp())
-
         current_price = None
 
         for item in prices:
@@ -49,9 +46,27 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         price_cents = round(current_price / 10, 2)
 
-await update.message.reply_text(
-    f"⚡ Электричество сейчас\n\n💰 {price_cents} c/kWh"
-)
+        if price_cents < 5:
+            emoji = "🟢"
+            status = "Очень дёшево"
+        elif price_cents < 10:
+            emoji = "🟡"
+            status = "Хорошая цена"
+        elif price_cents < 20:
+            emoji = "🟠"
+            status = "Средняя цена"
+        elif price_cents < 40:
+            emoji = "🔴"
+            status = "Дорого"
+        else:
+            emoji = "🚨"
+            status = "Очень дорого"
+
+        await update.message.reply_text(
+            f"⚡ Электричество сейчас\n\n"
+            f"{emoji} {price_cents} c/kWh\n"
+            f"📊 {status}"
+        )
 
     except Exception as e:
         await update.message.reply_text(
