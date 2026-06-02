@@ -20,17 +20,34 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         data = response.json()
 
-        prices = data["data"]["ee"]
+      prices = data["data"]["ee"]
 
-        if not prices:
-            await update.message.reply_text("Не удалось получить цену.")
-            return
+if not prices:
+    await update.message.reply_text("Не удалось получить цену.")
+    return
 
-        current_price = prices[0]["price"]
+from datetime import datetime
 
-        await update.message.reply_text(
-            f"⚡ Текущая цена:\n\n{current_price} €/MWh"
-        )
+now = int(datetime.now().timestamp())
+
+current_price = None
+
+for item in prices:
+    timestamp = item["timestamp"]
+
+    if timestamp <= now < timestamp + 3600:
+        current_price = item["price"]
+        break
+
+if current_price is None:
+    await update.message.reply_text(
+        "Не удалось определить текущую цену."
+    )
+    return
+
+await update.message.reply_text(
+    f"⚡ Текущая цена:\n\n{current_price} €/MWh"
+)
 
     except Exception as e:
         await update.message.reply_text(
