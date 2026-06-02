@@ -47,9 +47,11 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        await update.message.reply_text(
-            f"⚡ Текущая цена:\n\n{current_price} €/MWh"
-        )
+        price_cents = round(current_price / 10, 2)
+
+await update.message.reply_text(
+    f"⚡ Электричество сейчас\n\n💰 {price_cents} c/kWh"
+)
 
     except Exception as e:
         await update.message.reply_text(
