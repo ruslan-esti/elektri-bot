@@ -32,8 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Команды:\n\n"
         "/price - Цена сейчас\n"
         "/best - Лучший час\n"
-        "/top3 - ТОП-3 часа\n"
-        "/when - Проверка дат API"
+        "/top3 - ТОП-3 часа"
     )
 
 
@@ -41,7 +40,23 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prices = get_prices()
 
-        current_price = prices[0]["price"] / 10
+        now = int(datetime.now().timestamp())
+
+        current_price = None
+
+        for item in prices:
+
+            timestamp = int(item["timestamp"])
+
+            if timestamp <= now < timestamp + 3600:
+                current_price = item["price"] / 10
+                break
+
+        if current_price is None:
+            await update.message.reply_text(
+                "Не удалось определить цену текущего часа."
+            )
+            return
 
         icon, text = get_status(current_price)
 
@@ -141,38 +156,6 @@ async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def when(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        prices = get_prices()
-
-        first_date = datetime.fromtimestamp(
-            prices[0]["timestamp"]
-        )
-
-        last_date = datetime.fromtimestamp(
-            prices[-1]["timestamp"]
-        )
-
-        await update.message.reply_text(
-
-            f"📅 Первая запись:\n"
-
-            f"{first_date.strftime('%d.%m.%Y %H:%M')}\n\n"
-
-            f"📅 Последняя запись:\n"
-
-            f"{last_date.strftime('%d.%m.%Y %H:%M')}"
-
-        )
-
-    except Exception as e:
-
-        await update.message.reply_text(
-
-            f"Ошибка: {str(e)}"
-
-        )
-
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
@@ -182,7 +165,5 @@ app.add_handler(CommandHandler("price", price))
 app.add_handler(CommandHandler("best", best))
 
 app.add_handler(CommandHandler("top3", top3))
-
-app.add_handler(CommandHandler("when", when))
 
 app.run_polling()
