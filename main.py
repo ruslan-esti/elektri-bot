@@ -32,7 +32,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Команды:\n\n"
         "/price - Цена сейчас\n"
         "/best - Лучший час\n"
-        "/top3 - ТОП-3 часа"
+        "/top3 - ТОП-3 часа\n"
+        "/when - Проверка дат API"
     )
 
 
@@ -140,11 +141,20 @@ async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-app = Application.builder().token(TOKEN).build()
+async def when(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        prices = get_prices()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("price", price))
-app.add_handler(CommandHandler("best", best))
-app.add_handler(CommandHandler("top3", top3))
+        first_date = datetime.fromtimestamp(
+            prices[0]["timestamp"]
+        )
 
-app.run_polling()
+        last_date = datetime.fromtimestamp(
+            prices[-1]["timestamp"]
+        )
+
+        await update.message.reply_text(
+            f"📅 Первая запись:\n"
+            f"{first_date.strftime('%d.%m.%Y %H:%M')}\n\n"
+            f"📅 Последняя запись:\n"
+            f"{last_date.strftime('%d.%m.
