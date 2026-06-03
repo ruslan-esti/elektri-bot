@@ -7,62 +7,47 @@ from datetime import datetime
 TOKEN = os.getenv("BOT_TOKEN")
 
 
+def get_prices():
+    response = requests.get(
+        "https://dashboard.elering.ee/api/nps/price"
+    )
+
+    data = response.json()
+    return data["data"]["ee"]
+
+
+def get_status(price):
+    if price < 5:
+        return "🟢", "Очень выгодно"
+    elif price < 10:
+        return "🟡", "Хорошая цена"
+    elif price < 15:
+        return "🟠", "Средняя цена"
+    else:
+        return "🔴", "Дорого"
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "⚡ Привет!\n\n"
-        "Команды:\n"
-        "/price\n"
-        "/debug"
+        "⚡ ElektriHindBot\n\n"
+        "Доступные команды:\n\n"
+        "/price - Цена сейчас\n"
+        "/best - Лучший час\n"
+        "/top3 - ТОП-3 часа"
     )
 
 
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        response = requests.get(
-            "https://dashboard.elering.ee/api/nps/price"
-        )
+        prices = get_prices()
 
-        data = response.json()
-        prices = data["data"]["ee"]
+        current_price = prices[-1]["price"] / 10
 
-        if not prices:
-            await update.message.reply_text(
-                "Не удалось получить цену."
-            )
-            return
-
-        now = int(datetime.now().timestamp())
-
-        current_price = None
-
-        for item in prices:
-            timestamp = item["timestamp"]
-
-            if timestamp <= now < timestamp + 3600:
-                current_price = item["price"]
-                break
-
-        if current_price is None:
-            current_price = prices[0]["price"]
-
-        cents = round(current_price / 10, 2)
-
-        if cents < 5:
-            icon = "🟢"
-            text = "Очень дёшево"
-        elif cents < 10:
-            icon = "🟡"
-            text = "Хорошая цена"
-        elif cents < 20:
-            icon = "🟠"
-            text = "Средняя цена"
-        else:
-            icon = "🔴"
-            text = "Дорого"
+        icon, text = get_status(current_price)
 
         await update.message.reply_text(
             f"⚡ Электричество сейчас\n\n"
-            f"{icon} {cents} c/kWh\n"
+            f"{icon} {current_price:.2f} c/kWh\n\n"
             f"📊 {text}"
         )
 
@@ -72,21 +57,80 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        response = requests.get(
-            "https://dashboard.elering.ee/api/nps/price"
+        prices = get_prices()
+
+        best_price = None
+        best_index = 0
+
+        for i in range(len(prices) - 3):
+            avg = (
+                prices[i]["price"] +
+                prices[i + 1]["price"] +
+                prices[i + 2]["price"] +
+                prices[i + 3]["price"]
+            ) / 4
+
+            if best_price is None or avg < best_price:
+                best_price = avg
+                best_index = i
+
+        ts = prices[best_index]["timestamp"]
+
+        start_time = datetime.fromtimestamp(ts)
+        end_time = datetime.fromtimestamp(ts + 3600)
+
+        await update.message.reply_text(
+            f"🏆 Лучшее время сегодня\n\n"
+            f"⏰ {start_time.strftime('%H:%M')}–{end_time.strftime('%H:%M')}\n\n"
+            f"🟢 {best_price / 10:.2f} c/kWh"
         )
 
-        data = response.json()
-        prices = data["data"]["ee"]
+    except Exception as e:
+        await update.message.reply_text(
+            f"Ошибка: {str(e)}"
+        )
 
-        text = ""
 
-        for item in prices[:10]:
+async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        prices = get_prices()
+
+        hours = []
+
+        for i in range(len(prices) - 3):
+            avg = (
+                prices[i]["price"] +
+                prices[i + 1]["price"] +
+                prices[i + 2]["price"] +
+                prices[i + 3]["price"]
+            ) / 4
+
+            hours.append(
+                (
+                    avg,
+                    prices[i]["timestamp"]
+                )
+            )
+
+        hours.sort(key=lambda x: x[0])
+
+        medals = ["🥇", "🥈", "🥉"]
+
+        text = "🏆 Самые выгодные часы\n\n"
+
+        for i in range(3):
+            price_value, ts = hours[i]
+
+            start_time = datetime.fromtimestamp(ts)
+            end_time = datetime.fromtimestamp(ts + 3600)
+
             text += (
-                f"TS: {item['timestamp']}\n"
-                f"PRICE: {item['price']}\n\n"
+                f"{medals[i]} "
+                f"{start_time.strftime('%H:%M')}–"
+                f"{end_time.strftime('%H:%M')} → "
+                f"{price_value / 10:.2f} c/kWh\n"
             )
 
         await update.message.reply_text(text)
@@ -101,6 +145,7 @@ app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("price", price))
-app.add_handler(CommandHandler("debug", debug))
+app.add_handler(CommandHandler("best", best))
+app.add_handler(CommandHandler("top3", top3))
 
 app.run_polling()
