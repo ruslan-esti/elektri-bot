@@ -11,7 +11,6 @@ def get_prices():
     response = requests.get(
         "https://dashboard.elering.ee/api/nps/price"
     )
-
     data = response.json()
     return data["data"]["ee"]
 
@@ -41,13 +40,26 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prices = get_prices()
 
-        current_price = prices[-1]["price"] / 10
+        now = int(datetime.now().timestamp())
+        current_price = None
 
-        icon, text = get_status(current_price)
+        for item in prices:
+            ts = item["timestamp"]
+
+            if ts <= now < ts + 900:
+                current_price = item["price"]
+                break
+
+        if current_price is None:
+            current_price = prices[-1]["price"]
+
+        cents = current_price / 10
+
+        icon, text = get_status(cents)
 
         await update.message.reply_text(
             f"⚡ Электричество сейчас\n\n"
-            f"{icon} {current_price:.2f} c/kWh\n\n"
+            f"{icon} {cents:.2f} c/kWh\n\n"
             f"📊 {text}"
         )
 
@@ -64,7 +76,7 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
         now = int(datetime.now().timestamp())
 
         best_price = None
-        best_index = None
+        best_timestamp = None
 
         for i in range(len(prices) - 3):
 
@@ -72,26 +84,24 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 continue
 
             avg = (
-                prices[i]["price"] +
-                prices[i + 1]["price"] +
-                prices[i + 2]["price"] +
-                prices[i + 3]["price"]
+                prices[i]["price"]
+                + prices[i + 1]["price"]
+                + prices[i + 2]["price"]
+                + prices[i + 3]["price"]
             ) / 4
 
             if best_price is None or avg < best_price:
                 best_price = avg
-                best_index = i
+                best_timestamp = prices[i]["timestamp"]
 
-        if best_index is None:
+        if best_timestamp is None:
             await update.message.reply_text(
                 "Нет данных о будущих ценах."
             )
             return
 
-        ts = prices[best_index]["timestamp"]
-
-        start_time = datetime.fromtimestamp(ts)
-        end_time = datetime.fromtimestamp(ts + 3600)
+        start_time = datetime.fromtimestamp(best_timestamp)
+        end_time = datetime.fromtimestamp(best_timestamp + 3600)
 
         await update.message.reply_text(
             f"🏆 Лучшее время впереди\n\n"
@@ -119,4 +129,35 @@ async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 continue
 
             avg = (
-                prices
+                prices[i]["price"]
+                + prices[i + 1]["price"]
+                + prices[i + 2]["price"]
+                + prices[i + 3]["price"]
+            ) / 4
+
+            hours.append(
+                (
+                    avg,
+                    prices[i]["timestamp"]
+                )
+            )
+
+        if not hours:
+            await update.message.reply_text(
+                "Нет данных о будущих ценах."
+            )
+            return
+
+        hours.sort(key=lambda x: x[0])
+
+        text = "🥇 Самые выгодные часы впереди\n\n"
+
+        medals = ["🥇", "🥈", "🥉"]
+
+        for i in range(min(3, len(hours))):
+            price_value, timestamp = hours[i]
+
+            start_time = datetime.fromtimestamp(timestamp)
+            end_time = datetime.fromtimestamp(timestamp + 3600)
+
+            text += (
