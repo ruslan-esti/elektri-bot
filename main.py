@@ -9,7 +9,10 @@ TOKEN = os.getenv("BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "⚡ Привет!\n\nКоманды:\n/price\n/debug"
+        "⚡ Привет!\n\n"
+        "Команды:\n"
+        "/price\n"
+        "/debug"
     )
 
 
@@ -29,6 +32,7 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         now = int(datetime.now().timestamp())
+
         current_price = None
 
         for item in prices:
@@ -39,33 +43,27 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
 
         if current_price is None:
-            await update.message.reply_text(
-                "Не удалось определить текущую цену."
-            )
-            return
+            current_price = prices[0]["price"]
 
-        price_cents = round(current_price / 10, 2)
+        cents = round(current_price / 10, 2)
 
-        if price_cents < 5:
-            emoji = "🟢"
-            status = "Очень дёшево"
-        elif price_cents < 10:
-            emoji = "🟡"
-            status = "Хорошая цена"
-        elif price_cents < 20:
-            emoji = "🟠"
-            status = "Средняя цена"
-        elif price_cents < 40:
-            emoji = "🔴"
-            status = "Дорого"
+        if cents < 5:
+            icon = "🟢"
+            text = "Очень дёшево"
+        elif cents < 10:
+            icon = "🟡"
+            text = "Хорошая цена"
+        elif cents < 20:
+            icon = "🟠"
+            text = "Средняя цена"
         else:
-            emoji = "🚨"
-            status = "Очень дорого"
+            icon = "🔴"
+            text = "Дорого"
 
         await update.message.reply_text(
             f"⚡ Электричество сейчас\n\n"
-            f"{emoji} {price_cents} c/kWh\n"
-            f"📊 {status}"
+            f"{icon} {cents} c/kWh\n"
+            f"📊 {text}"
         )
 
     except Exception as e:
@@ -83,26 +81,19 @@ async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data = response.json()
         prices = data["data"]["ee"]
 
-        now = int(datetime.now().timestamp())
+        text = ""
 
-        for item in prices:
-            timestamp = item["timestamp"]
+        for item in prices[:10]:
+            text += (
+                f"TS: {item['timestamp']}\n"
+                f"PRICE: {item['price']}\n\n"
+            )
 
-            if timestamp <= now < timestamp + 3600:
-                await update.message.reply_text(
-                    f"NOW: {now}\n"
-                    f"TS: {timestamp}\n"
-                    f"PRICE: {item['price']}"
-                )
-                return
-
-        await update.message.reply_text(
-            "Текущий час не найден."
-        )
+        await update.message.reply_text(text)
 
     except Exception as e:
         await update.message.reply_text(
-            f"DEBUG ERROR: {str(e)}"
+            f"Ошибка: {str(e)}"
         )
 
 
