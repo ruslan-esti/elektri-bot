@@ -29,7 +29,7 @@ def get_status(price):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "⚡ ElektriHindBot\n\n"
-        "Доступные команды:\n\n"
+        "Команды:\n\n"
         "/price - Цена сейчас\n"
         "/best - Лучший час\n"
         "/top3 - ТОП-3 часа"
@@ -40,26 +40,13 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prices = get_prices()
 
-        now = int(datetime.now().timestamp())
-        current_price = None
+        current_price = prices[0]["price"] / 10
 
-        for item in prices:
-            ts = item["timestamp"]
-
-            if ts <= now < ts + 900:
-                current_price = item["price"]
-                break
-
-        if current_price is None:
-            current_price = prices[-1]["price"]
-
-        cents = current_price / 10
-
-        icon, text = get_status(cents)
+        icon, text = get_status(current_price)
 
         await update.message.reply_text(
             f"⚡ Электричество сейчас\n\n"
-            f"{icon} {cents:.2f} c/kWh\n\n"
+            f"{icon} {current_price:.2f} c/kWh\n\n"
             f"📊 {text}"
         )
 
@@ -73,15 +60,10 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prices = get_prices()
 
-        now = int(datetime.now().timestamp())
-
         best_price = None
         best_timestamp = None
 
         for i in range(len(prices) - 3):
-
-            if prices[i]["timestamp"] < now:
-                continue
 
             avg = (
                 prices[i]["price"]
@@ -94,17 +76,11 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 best_price = avg
                 best_timestamp = prices[i]["timestamp"]
 
-        if best_timestamp is None:
-            await update.message.reply_text(
-                "Нет данных о будущих ценах."
-            )
-            return
-
         start_time = datetime.fromtimestamp(best_timestamp)
         end_time = datetime.fromtimestamp(best_timestamp + 3600)
 
         await update.message.reply_text(
-            f"🏆 Лучшее время впереди\n\n"
+            f"🏆 Лучший час\n\n"
             f"⏰ {start_time.strftime('%H:%M')}–{end_time.strftime('%H:%M')}\n\n"
             f"🟢 {best_price / 10:.2f} c/kWh"
         )
@@ -119,14 +95,9 @@ async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prices = get_prices()
 
-        now = int(datetime.now().timestamp())
-
         hours = []
 
         for i in range(len(prices) - 3):
-
-            if prices[i]["timestamp"] < now:
-                continue
 
             avg = (
                 prices[i]["price"]
@@ -142,17 +113,11 @@ async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             )
 
-        if not hours:
-            await update.message.reply_text(
-                "Нет данных о будущих ценах."
-            )
-            return
-
         hours.sort(key=lambda x: x[0])
 
-        text = "🥇 Самые выгодные часы впереди\n\n"
-
         medals = ["🥇", "🥈", "🥉"]
+
+        text = "🥇 ТОП-3 часа\n\n"
 
         for i in range(min(3, len(hours))):
             price_value, timestamp = hours[i]
