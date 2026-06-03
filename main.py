@@ -154,7 +154,35 @@ async def when(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         await update.message.reply_text(
+
             f"📅 Первая запись:\n"
+
             f"{first_date.strftime('%d.%m.%Y %H:%M')}\n\n"
+
             f"📅 Последняя запись:\n"
-            f"{last_date.strftime('%d.%m.
+
+            f"{last_date.strftime('%d.%m.%Y %H:%M')}"
+
+        )
+
+    except Exception as e:
+
+        await update.message.reply_text(
+
+            f"Ошибка: {str(e)}"
+
+        )
+
+app = Application.builder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+
+app.add_handler(CommandHandler("price", price))
+
+app.add_handler(CommandHandler("best", best))
+
+app.add_handler(CommandHandler("top3", top3))
+
+app.add_handler(CommandHandler("when", when))
+
+app.run_polling()
