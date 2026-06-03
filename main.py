@@ -9,7 +9,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "⚡ Привет!\n\nКоманды:\n/price"
+        "⚡ Привет!\n\nКоманды:\n/price\n/debug"
     )
 
 
@@ -74,9 +74,42 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        response = requests.get(
+            "https://dashboard.elering.ee/api/nps/price"
+        )
+
+        data = response.json()
+        prices = data["data"]["ee"]
+
+        now = int(datetime.now().timestamp())
+
+        for item in prices:
+            timestamp = item["timestamp"]
+
+            if timestamp <= now < timestamp + 3600:
+                await update.message.reply_text(
+                    f"NOW: {now}\n"
+                    f"TS: {timestamp}\n"
+                    f"PRICE: {item['price']}"
+                )
+                return
+
+        await update.message.reply_text(
+            "Текущий час не найден."
+        )
+
+    except Exception as e:
+        await update.message.reply_text(
+            f"DEBUG ERROR: {str(e)}"
+        )
+
+
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("price", price))
+app.add_handler(CommandHandler("debug", debug))
 
 app.run_polling()
