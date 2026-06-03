@@ -161,3 +161,25 @@ async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
             end_time = datetime.fromtimestamp(timestamp + 3600)
 
             text += (
+                f"{medals[i]} "
+                f"{start_time.strftime('%H:%M')}–"
+                f"{end_time.strftime('%H:%M')} → "
+                f"{price_value / 10:.2f} c/kWh\n"
+            )
+
+        await update.message.reply_text(text)
+
+    except Exception as e:
+        await update.message.reply_text(
+            f"Ошибка: {str(e)}"
+        )
+
+
+app = Application.builder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("price", price))
+app.add_handler(CommandHandler("best", best))
+app.add_handler(CommandHandler("top3", top3))
+
+app.run_polling()
