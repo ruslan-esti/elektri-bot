@@ -61,10 +61,16 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prices = get_prices()
 
+        now = int(datetime.now().timestamp())
+
         best_price = None
-        best_index = 0
+        best_index = None
 
         for i in range(len(prices) - 3):
+
+            if prices[i]["timestamp"] < now:
+                continue
+
             avg = (
                 prices[i]["price"] +
                 prices[i + 1]["price"] +
@@ -76,13 +82,19 @@ async def best(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 best_price = avg
                 best_index = i
 
+        if best_index is None:
+            await update.message.reply_text(
+                "Нет данных о будущих ценах."
+            )
+            return
+
         ts = prices[best_index]["timestamp"]
 
         start_time = datetime.fromtimestamp(ts)
         end_time = datetime.fromtimestamp(ts + 3600)
 
         await update.message.reply_text(
-            f"🏆 Лучшее время сегодня\n\n"
+            f"🏆 Лучшее время впереди\n\n"
             f"⏰ {start_time.strftime('%H:%M')}–{end_time.strftime('%H:%M')}\n\n"
             f"🟢 {best_price / 10:.2f} c/kWh"
         )
@@ -97,55 +109,14 @@ async def top3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prices = get_prices()
 
+        now = int(datetime.now().timestamp())
+
         hours = []
 
         for i in range(len(prices) - 3):
+
+            if prices[i]["timestamp"] < now:
+                continue
+
             avg = (
-                prices[i]["price"] +
-                prices[i + 1]["price"] +
-                prices[i + 2]["price"] +
-                prices[i + 3]["price"]
-            ) / 4
-
-            hours.append(
-                (
-                    avg,
-                    prices[i]["timestamp"]
-                )
-            )
-
-        hours.sort(key=lambda x: x[0])
-
-        medals = ["🥇", "🥈", "🥉"]
-
-        text = "🏆 Самые выгодные часы\n\n"
-
-        for i in range(3):
-            price_value, ts = hours[i]
-
-            start_time = datetime.fromtimestamp(ts)
-            end_time = datetime.fromtimestamp(ts + 3600)
-
-            text += (
-                f"{medals[i]} "
-                f"{start_time.strftime('%H:%M')}–"
-                f"{end_time.strftime('%H:%M')} → "
-                f"{price_value / 10:.2f} c/kWh\n"
-            )
-
-        await update.message.reply_text(text)
-
-    except Exception as e:
-        await update.message.reply_text(
-            f"Ошибка: {str(e)}"
-        )
-
-
-app = Application.builder().token(TOKEN).build()
-
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("price", price))
-app.add_handler(CommandHandler("best", best))
-app.add_handler(CommandHandler("top3", top3))
-
-app.run_polling()
+                prices
